@@ -4,6 +4,11 @@
   "command": [
     "jdtls"
   ],
+  "initializationOptions": {
+    "extendedClientCapabilities": {
+      "classFileContentsSupport": true
+    }
+  },
   "settings": {
     "java": {
       "completion" : {

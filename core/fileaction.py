@@ -42,7 +42,7 @@ class FileAction(object):
         object.__init__(self)
 
         # Build request functions.
-        for name in ["find_define", "find_references", "prepare_rename", "rename", "completion", "hover"]:
+        for name in ["find_define", "find_references", "prepare_rename", "rename", "completion", "hover", "jdt_class_contents"]:
             self.build_request_function(name)
 
         # Init.
@@ -151,6 +151,8 @@ class FileAction(object):
             self.handle_rename_response(request_id, response_result)
         elif request_type == "hover":
             self.handle_hover_response(request_id, response_result)
+        elif request_type == "jdt_class_contents":
+            self.handle_jdt_class_contents_response(request_id, response_result)
 
     def handle_completion_response(self, request_id, response_result):
         # Stop send completion items to client if request id expired, or change file, or move cursor.
@@ -226,11 +228,14 @@ class FileAction(object):
                     file_info = response_result[0]
                     # volar return only LocationLink (using targetUri)
                     fileuri = file_info["uri"] if "uri" in file_info else file_info["targetUri"]
-                    filepath = uri_to_path(fileuri)
                     range1 = file_info["range"] if "range" in file_info else file_info["targetRange"]
                     startpos = range1["start"]
                     row = startpos["line"]
                     column = startpos["character"]
+                    if fileuri.startswith("jdt://"):
+                        self.get_jdt_class_contents(fileuri, row, column)
+                        return
+                    filepath = uri_to_path(fileuri)
                     eval_in_emacs("lsp-bridge--jump-to-def", [filepath, row, column])
                 except:
                     logger.info("* Failed information about find_define response.")
@@ -238,6 +243,14 @@ class FileAction(object):
                     traceback.print_exc()
             else:
                 eval_in_emacs("message", ["[LSP-Bridge] Can't find define."])
+    
+    def get_jdt_class_contents(self, uri, row, column):
+        # TODO: put row, column
+        self.jdt_class_contents(uri)
+    
+    def handle_jdt_class_contents_response(self, request_id, response_result):
+        # TODO: get row, column
+        pass
 
     def handle_find_references_response(self, request_id, response_result):
         import linecache

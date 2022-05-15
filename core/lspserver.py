@@ -435,6 +435,13 @@ class LspServer(object):
     def send_exit_notification(self):
         self.send_to_notification("exit", {})
 
+    def send_jdt_class_contents_request(self, request_id, original_filepath, type, uri):
+        method = "java/classFileContents"
+        self.record_request_id(request_id, method, original_filepath, type)
+        self.send_to_request(method, {
+            "uri": uri
+        }, request_id)
+
     def get_server_workspace_change_configuration(self):
         return {
             "settings": self.server_info["settings"]
@@ -482,6 +489,8 @@ class LspServer(object):
                     pass
                 
                 self.send_to_notification("initialized", {})
+            elif message["id"] == self.shutdown_id:
+                self.send_exit_notification()
             else:
                 if "method" not in message.keys() and message["id"] in self.request_dict:
                     self.message_queue.put({
@@ -491,7 +500,7 @@ class LspServer(object):
                                     message["id"],
                                     message["result"])
                     })
-                else:
+                elif "method" in message.keys():
                     if message["method"] == "workspace/configuration":
                         self.handle_workspace_configuration_request(message["method"], message["id"], message["params"])
 
@@ -518,6 +527,14 @@ class LspServer(object):
                 "name": "server_file_opened",
                 "content": fileuri
             })
+        elif name == "exit":
+            self.message_queue.put({
+                "name": "server_process_exit",
+                "content": self.server_name
+            })
+
+            # Don't need wait LSP server response, kill immediately.
+            os.kill(self.p.pid, 9)
 
     def send_to_request(self, name, params, request_id):
         # Request message must be contain unique request id.
@@ -545,12 +562,3 @@ class LspServer(object):
         # We need shutdown LSP server when last file closed, to save system memory.
         if len(self.open_file_dict) == 0:
             self.send_shutdown_request()
-            self.send_exit_notification()
-
-            self.message_queue.put({
-                "name": "server_process_exit",
-                "content": self.server_name
-            })
-
-            # Don't need wait LSP server response, kill immediately.
-            os.kill(self.p.pid, 9)
