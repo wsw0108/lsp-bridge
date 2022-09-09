@@ -1056,13 +1056,13 @@ you can customize `lsp-bridge-get-workspace-folder' to return workspace folder p
     (unless (eq last-command 'mwheel-scroll)
       (lsp-bridge-call-file-api "signature_help" (lsp-bridge--position)))))
 
-(defun lsp-bridge-file-apply-edits (filepath edits &optional just-reverse)
+(defun lsp-bridge-file-apply-edits (filepath edits &optional just-reverse narrow-then-replace)
   (if (string-match "^/[A-Za-z]:" filepath)
       (setq filepath (substring filepath 1)))
   (find-file-noselect filepath)
   (save-excursion
     (find-file filepath)
-    (acm-backend-lsp-apply-text-edits edits just-reverse))
+    (acm-backend-lsp-apply-text-edits edits just-reverse narrow-then-replace))
 
   (setq-local lsp-bridge-prohibit-completion t))
 
@@ -1455,7 +1455,7 @@ you can customize `lsp-bridge-get-workspace-folder' to return workspace folder p
   ;; We need set `inhibit-modification-hooks' to t to avoid GC freeze Emacs.
   (let ((inhibit-modification-hooks t))
     ;; Apply code format edits, not sort, just reverse order.
-    (lsp-bridge-file-apply-edits filepath edits t)
+    (lsp-bridge-file-apply-edits filepath edits t t)
     ;; Make LSP server update full content.
     (lsp-bridge-call-file-api "update_file" (buffer-name))
     ;; Notify format complete.

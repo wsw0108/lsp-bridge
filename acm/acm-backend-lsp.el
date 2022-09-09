@@ -216,13 +216,12 @@ If optional MARKER, return a marker instead"
                           (line-end-position)))))
       (if marker (copy-marker (point-marker)) (point)))))
 
-(defun acm-backend-lsp-apply-text-edits (edits just-reverse)
-  (atomic-change-group
-    (let ((change-group (prepare-change-group)))
-      (dolist (edit (if just-reverse (reverse edits) (acm-backend-lsp-sort-edits edits)))
-        (let* ((range (plist-get edit :range)))
-          (acm-backend-lsp-insert-new-text (plist-get range :start) (plist-get range :end) (plist-get edit :newText))))
-      (undo-amalgamate-change-group change-group))))
+(defun acm-backend-lsp-apply-text-edits (edits just-reverse &optional narrow-then-replace)
+  (dolist (edit (if just-reverse (reverse edits) (acm-backend-lsp-sort-edits edits)))
+    (let* ((range (plist-get edit :range)))
+      (if narrow-then-replace
+          (acm-backend-lsp-insert-new-text-narrow (plist-get range :start) (plist-get range :end) (plist-get edit :newText))
+        (acm-backend-lsp-insert-new-text (plist-get range :start) (plist-get range :end) (plist-get edit :newText))))))
 
 (defun acm-backend-lsp-sort-edits (edits)
   (sort edits #'(lambda (edit-a edit-b)
@@ -237,6 +236,14 @@ Doubles as an indicator of snippet support."
        'yas-expand-snippet))
 
 (defun acm-backend-lsp-insert-new-text (start-pos end-pos new-text)
+  (let* ((start-point (acm-backend-lsp-position-to-point start-pos))
+         (end-point (acm-backend-lsp-position-to-point end-pos)))
+    (save-excursion
+      (delete-region start-point end-point)
+      (goto-char start-point)
+      (insert new-text))))
+
+(defun acm-backend-lsp-insert-new-text-narrow (start-pos end-pos new-text)
   (let* ((start-point (acm-backend-lsp-position-to-point start-pos))
          (end-point (acm-backend-lsp-position-to-point end-pos)))
     ;; from eglot
